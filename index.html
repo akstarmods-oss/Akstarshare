@@ -2,13 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Akash - Sila Live Screen Mirror</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ak⭐ Screen Viwe</title>
     <style>
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         body {
@@ -18,59 +20,71 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 16px;
+            justify-content: space-between;
+            height: 100vh;
+            width: 100vw;
+            padding: 12px;
+            overflow: hidden;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 16px;
+            width: 100%;
+            padding-top: 8px;
         }
 
         h1 {
             color: #58a6ff;
-            font-size: 22px;
+            font-size: 19px;
+            font-weight: 700;
             letter-spacing: 0.5px;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
 
-        .badge-container {
+        .badge-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
-            margin-bottom: 8px;
+            gap: 6px;
+            margin-bottom: 6px;
         }
 
         .badge {
-            background: #1f242c;
+            background: #161b22;
             border: 1px solid #30363d;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
             color: #8b949e;
         }
 
         #status {
-            font-size: 14px;
+            font-size: 13px;
             color: #d29922;
-            transition: color 0.3s ease;
+            font-weight: 500;
+        }
+
+        #iceStatus {
+            font-size: 11px;
+            color: #8b949e;
+            margin-top: 2px;
         }
 
         .video-box {
             position: relative;
             width: 100%;
-            max-width: 420px;
-            height: 75vh;
+            flex: 1;
+            max-height: 80vh;
             background: #000000;
             border: 2px solid #30363d;
-            border-radius: 16px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+            margin: 10px 0;
+            cursor: pointer;
         }
 
         video {
@@ -81,67 +95,87 @@
             background: #000;
         }
 
-        .controls {
-            margin-top: 16px;
+        .watermark {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            color: #8b949e;
+            pointer-events: none;
+        }
+
+        .bottom-bar {
+            width: 100%;
             display: flex;
-            gap: 12px;
+            gap: 10px;
+            padding-bottom: 6px;
         }
 
         .btn {
+            flex: 1;
             background-color: #21262d;
             color: #c9d1d9;
             border: 1px solid #30363d;
-            padding: 8px 16px;
-            border-radius: 6px;
+            padding: 10px 0;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 13px;
+            font-weight: 600;
+            text-align: center;
             transition: 0.2s;
         }
 
-        .btn:hover {
+        .btn:active {
             background-color: #30363d;
             color: #ffffff;
+            transform: scale(0.98);
         }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1>AK STAR LIVE MIRROR</h1>
-        <div class="badge-container">
+        <h1>Ak⭐ Screen Viwe</h1>
+        <div class="badge-row">
             <span class="badge">Broadcaster: Sila</span>
             <span class="badge">Viewer: Akash</span>
         </div>
         <div id="status">Connecting to Render Server...</div>
+        <div id="iceStatus">P2P: Initializing...</div>
     </div>
 
-    <div class="video-box">
-        <!-- muted attribute browser autoplay block hone se bachata hai -->
+    <div class="video-box" onclick="forcePlay()">
         <video id="remoteVideo" autoplay playsinline muted></video>
+        <div class="watermark">AK STAR LIVE</div>
     </div>
 
-    <div class="controls">
-        <button class="btn" onclick="toggleFullscreen()">Fullscreen</button>
+    <div class="bottom-bar">
+        <button class="btn" onclick="forcePlay()">Tap to Play</button>
         <button class="btn" onclick="reconnect()">Reconnect</button>
     </div>
 
     <script>
         const statusEl = document.getElementById('status');
+        const iceStatusEl = document.getElementById('iceStatus');
         const remoteVideo = document.getElementById('remoteVideo');
 
         const SERVER_URL = "wss://akstar-signaling.onrender.com";
 
         let ws;
         let pc;
+        let candidateQueue = [];
 
         function connectSignaling() {
-            statusEl.innerText = "Connecting to Render server...";
+            statusEl.innerText = "Connecting to server...";
             statusEl.style.color = "#d29922";
 
             ws = new WebSocket(SERVER_URL);
 
             ws.onopen = () => {
-                statusEl.innerText = "Connected! Waiting for Sila's stream...";
+                statusEl.innerText = "Connected! Waiting for Sila...";
                 statusEl.style.color = "#58a6ff";
 
                 ws.send(JSON.stringify({
@@ -157,35 +191,45 @@
                     const data = JSON.parse(msg.data);
 
                     if (data.type === 'offer') {
-                        statusEl.innerText = "Receiving stream from Sila...";
+                        statusEl.innerText = "Receiving stream...";
                         statusEl.style.color = "#2ea043";
 
                         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+
+                        while (candidateQueue.length > 0) {
+                            const cand = candidateQueue.shift();
+                            await pc.addIceCandidate(cand);
+                        }
+
                         const answer = await pc.createAnswer();
                         await pc.setLocalDescription(answer);
 
                         ws.send(JSON.stringify({
                             type: 'answer',
-                            answer: answer
+                            answer: {
+                                type: answer.type,
+                                sdp: answer.sdp
+                            }
                         }));
-                    } else if (data.type === 'candidate' && pc) {
-                        try {
-                            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-                        } catch (e) {
-                            console.error("ICE Candidate error:", e);
+                    } else if (data.type === 'candidate' && data.candidate) {
+                        const candidate = new RTCIceCandidate(data.candidate);
+                        if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+                            await pc.addIceCandidate(candidate);
+                        } else {
+                            candidateQueue.push(candidate);
                         }
                     } else if (data.type === 'stream_stopped') {
-                        statusEl.innerText = "Sila has stopped sharing screen.";
+                        statusEl.innerText = "Sila stopped sharing screen.";
                         statusEl.style.color = "#f85149";
                         remoteVideo.srcObject = null;
                     }
                 } catch (e) {
-                    console.error("Message error:", e);
+                    console.error("Signal error:", e);
                 }
             };
 
             ws.onerror = () => {
-                statusEl.innerText = "Connection failed! Reconnecting...";
+                statusEl.innerText = "Server connection failed!";
                 statusEl.style.color = "#f85149";
             };
 
@@ -204,44 +248,54 @@
             pc = new RTCPeerConnection({
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
-                ]
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' }
+                ],
+                sdpSemantics: 'unified-plan'
             });
-
-            // Browser ko explicit bolte hain ki video aane wali hai
-            pc.addTransceiver('video', { direction: 'recvonly' });
 
             pc.ontrack = (event) => {
                 statusEl.innerText = "🔴 LIVE: Viewing Sila's Screen";
                 statusEl.style.color = "#2ea043";
-                
+
                 if (event.streams && event.streams[0]) {
                     remoteVideo.srcObject = event.streams[0];
                 } else {
-                    let inboundStream = new MediaStream();
-                    inboundStream.addTrack(event.track);
-                    remoteVideo.srcObject = inboundStream;
+                    let stream = new MediaStream();
+                    stream.addTrack(event.track);
+                    remoteVideo.srcObject = stream;
                 }
 
-                // Force play
-                remoteVideo.play().catch(e => console.log("Play trigger error:", e));
+                remoteVideo.play().catch(e => console.log("Play error:", e));
+            };
+
+            pc.oniceconnectionstatechange = () => {
+                iceStatusEl.innerText = "P2P State: " + pc.iceConnectionState;
+                if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+                    iceStatusEl.style.color = "#2ea043";
+                } else if (pc.iceConnectionState === "failed") {
+                    iceStatusEl.style.color = "#f85149";
+                }
             };
 
             pc.onicecandidate = (event) => {
                 if (event.candidate && ws && ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify({
                         type: 'candidate',
-                        candidate: event.candidate
+                        candidate: {
+                            candidate: event.candidate.candidate,
+                            sdpMid: event.candidate.sdpMid,
+                            sdpMLineIndex: event.candidate.sdpMLineIndex
+                        }
                     }));
                 }
             };
         }
 
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                remoteVideo.requestFullscreen().catch(err => alert("Fullscreen error"));
-            } else {
-                document.exitFullscreen();
+        function forcePlay() {
+            if (remoteVideo) {
+                remoteVideo.muted = true;
+                remoteVideo.play().catch(e => console.log(e));
             }
         }
 
@@ -250,7 +304,9 @@
             connectSignaling();
         }
 
-        connectSignaling();
+        window.onload = () => {
+            connectSignaling();
+        };
     </script>
 </body>
 </html>
