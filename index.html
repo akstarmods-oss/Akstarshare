@@ -25,7 +25,7 @@
 
         .header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
         h1 {
@@ -81,15 +81,6 @@
             background: #000;
         }
 
-        .placeholder-text {
-            position: absolute;
-            color: #484f58;
-            font-size: 15px;
-            text-align: center;
-            padding: 20px;
-            pointer-events: none;
-        }
-
         .controls {
             margin-top: 16px;
             display: flex;
@@ -125,8 +116,8 @@
     </div>
 
     <div class="video-box">
-        <div id="placeholder" class="placeholder-text">Waiting for Sila to start screen sharing...</div>
-        <video id="remoteVideo" autoplay playsinline controls></video>
+        <!-- muted attribute browser autoplay block hone se bachata hai -->
+        <video id="remoteVideo" autoplay playsinline muted></video>
     </div>
 
     <div class="controls">
@@ -137,7 +128,6 @@
     <script>
         const statusEl = document.getElementById('status');
         const remoteVideo = document.getElementById('remoteVideo');
-        const placeholder = document.getElementById('placeholder');
 
         const SERVER_URL = "wss://akstar-signaling.onrender.com";
 
@@ -151,7 +141,7 @@
             ws = new WebSocket(SERVER_URL);
 
             ws.onopen = () => {
-                statusEl.innerText = "Connected! Ready for Sila's screen.";
+                statusEl.innerText = "Connected! Waiting for Sila's stream...";
                 statusEl.style.color = "#58a6ff";
 
                 ws.send(JSON.stringify({
@@ -182,26 +172,25 @@
                         try {
                             await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
                         } catch (e) {
-                            console.error("ICE error:", e);
+                            console.error("ICE Candidate error:", e);
                         }
                     } else if (data.type === 'stream_stopped') {
                         statusEl.innerText = "Sila has stopped sharing screen.";
                         statusEl.style.color = "#f85149";
                         remoteVideo.srcObject = null;
-                        placeholder.style.display = "block";
                     }
                 } catch (e) {
-                    console.error("Parse error:", e);
+                    console.error("Message error:", e);
                 }
             };
 
             ws.onerror = () => {
-                statusEl.innerText = "Server connection failed! Reconnecting...";
+                statusEl.innerText = "Connection failed! Reconnecting...";
                 statusEl.style.color = "#f85149";
             };
 
             ws.onclose = () => {
-                statusEl.innerText = "Disconnected from server. Reconnecting...";
+                statusEl.innerText = "Disconnected. Retrying in 3s...";
                 statusEl.style.color = "#f85149";
                 setTimeout(connectSignaling, 3000);
             };
@@ -219,11 +208,23 @@
                 ]
             });
 
+            // Browser ko explicit bolte hain ki video aane wali hai
+            pc.addTransceiver('video', { direction: 'recvonly' });
+
             pc.ontrack = (event) => {
-                statusEl.innerText = "LIVE: Viewing Sila's Screen";
+                statusEl.innerText = "🔴 LIVE: Viewing Sila's Screen";
                 statusEl.style.color = "#2ea043";
-                placeholder.style.display = "none";
-                remoteVideo.srcObject = event.streams[0];
+                
+                if (event.streams && event.streams[0]) {
+                    remoteVideo.srcObject = event.streams[0];
+                } else {
+                    let inboundStream = new MediaStream();
+                    inboundStream.addTrack(event.track);
+                    remoteVideo.srcObject = inboundStream;
+                }
+
+                // Force play
+                remoteVideo.play().catch(e => console.log("Play trigger error:", e));
             };
 
             pc.onicecandidate = (event) => {
