@@ -14,7 +14,7 @@
         body {
             background-color: #0b0e14;
             color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -121,7 +121,7 @@
             <span class="badge">Broadcaster: Sila</span>
             <span class="badge">Viewer: Akash</span>
         </div>
-        <div id="status">Connecting to signaling server...</div>
+        <div id="status">Connecting to Render Server...</div>
     </div>
 
     <div class="video-box">
@@ -139,23 +139,21 @@
         const remoteVideo = document.getElementById('remoteVideo');
         const placeholder = document.getElementById('placeholder');
 
-        // Yahan apna Termux IP (jaise ws://192.168.1.15:8080) ya Cloud WebSocket URL daalein
-        const SERVER_URL = "ws://https://akstar-signaling.onrender.com";
+        const SERVER_URL = "wss://akstar-signaling.onrender.com";
 
         let ws;
         let pc;
 
         function connectSignaling() {
-            statusEl.innerText = "Connecting to signaling server...";
+            statusEl.innerText = "Connecting to Render server...";
             statusEl.style.color = "#d29922";
 
             ws = new WebSocket(SERVER_URL);
 
             ws.onopen = () => {
-                statusEl.innerText = "Connected to server. Ready for Sila's screen!";
+                statusEl.innerText = "Connected! Ready for Sila's screen.";
                 statusEl.style.color = "#58a6ff";
 
-                // Server ko announce karein ki viewer 'akash' connect hua hai
                 ws.send(JSON.stringify({
                     type: 'register',
                     name: 'akash'
@@ -169,7 +167,7 @@
                     const data = JSON.parse(msg.data);
 
                     if (data.type === 'offer') {
-                        statusEl.innerText = "Receiving live stream from Sila...";
+                        statusEl.innerText = "Receiving stream from Sila...";
                         statusEl.style.color = "#2ea043";
 
                         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
@@ -193,19 +191,19 @@
                         placeholder.style.display = "block";
                     }
                 } catch (e) {
-                    console.error("Message parse error:", e);
+                    console.error("Parse error:", e);
                 }
             };
 
             ws.onerror = () => {
-                statusEl.innerText = "Server connection failed! Check IP/Port.";
+                statusEl.innerText = "Server connection failed! Reconnecting...";
                 statusEl.style.color = "#f85149";
             };
 
             ws.onclose = () => {
-                statusEl.innerText = "Disconnected from server. Retrying in 4s...";
+                statusEl.innerText = "Disconnected from server. Reconnecting...";
                 statusEl.style.color = "#f85149";
-                setTimeout(connectSignaling, 4000);
+                setTimeout(connectSignaling, 3000);
             };
         }
 
@@ -222,7 +220,7 @@
             });
 
             pc.ontrack = (event) => {
-                statusEl.innerText = "🔴 LIVE: Viewing Sila's Screen";
+                statusEl.innerText = "LIVE: Viewing Sila's Screen";
                 statusEl.style.color = "#2ea043";
                 placeholder.style.display = "none";
                 remoteVideo.srcObject = event.streams[0];
@@ -251,7 +249,6 @@
             connectSignaling();
         }
 
-        // Auto start on page load
         connectSignaling();
     </script>
 </body>
